@@ -11,6 +11,7 @@ export type VendaConcluidaRow = {
 export type PercentageRow = {
   estabelecimento: string;
   porcentagem: number; // As decimal (e.g., 20% = 0.20)
+  pix: string;
 };
 
 export type OccurrenceRow = {
@@ -198,6 +199,9 @@ export async function parsePercentages(
     const porcentagemCol = headers.find((h) =>
       h.toLowerCase().includes("porcetagem"),
     );
+    const chavePixCol = headers.find((h) =>
+      h.toLowerCase().includes("chave pix"),
+    );
 
     if (!estabelecimentoCol) {
       return {
@@ -210,11 +214,16 @@ export async function parsePercentages(
         error: 'Coluna "Porcentagem" não encontrada no arquivo de porcentagens',
       };
     }
-
+    if (!chavePixCol) {
+      return {
+        error: 'Coluna "Chave Pix" não encontrada no arquivo de porcentagens',
+      };
+    }
     // Parse the data
     const parsed: PercentageRow[] = rawData.map((row) => ({
       estabelecimento: String(row[estabelecimentoCol] || "").trim(),
       porcentagem: parsePercentage(row[porcentagemCol]),
+      pix: String(row[chavePixCol] || "").trim(),
     }));
 
     // Filter out empty rows

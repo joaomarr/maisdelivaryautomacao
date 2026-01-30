@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import * as XLSX from "xlsx";
 import type { RepasseCalculationResult } from "../utils/calculateRepasse";
 
 type RepasseDisplayProps = {
@@ -12,9 +13,20 @@ export function RepasseDisplay({ result, onBack }: RepasseDisplayProps) {
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
   >({});
+  const [copiedPix, setCopiedPix] = useState<string | null>(null);
 
   const toggleSection = (key: string) => {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const copyToClipboard = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedPix(key);
+      setTimeout(() => setCopiedPix(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -26,6 +38,49 @@ export function RepasseDisplay({ result, onBack }: RepasseDisplayProps) {
 
   const formatPercentage = (value: number) => {
     return (value * 100).toFixed(2) + "%";
+  };
+
+  const exportToExcel = () => {
+    // Prepare data for export
+    const exportData = result.calculations.map((calc) => {
+      // Count total occurrences
+      const totalOccurrences =
+        calc.occurrencesBeforeTax.length + calc.occurrencesAfterTax.length;
+
+      return {
+        Estabelecimento: calc.estabelecimento,
+        PIX: calc.pix || "N/A",
+        Ocorrências: totalOccurrences,
+        Taxa:
+          calc.percentage !== null
+            ? (calc.percentage * 100).toFixed(2) + "%"
+            : "N/A",
+        Repasse: calc.finalValue.toFixed(2),
+      };
+    });
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+    // Set column widths
+    worksheet["!cols"] = [
+      { wch: 30 }, // Estabelecimento
+      { wch: 20 }, // PIX
+      { wch: 12 }, // Ocorrências
+      { wch: 10 }, // Taxa
+      { wch: 15 }, // Repasse
+    ];
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Repasse Lojas");
+
+    // Generate filename with current date
+    const date = new Date().toISOString().split("T")[0];
+    const filename = `repasse_lojas_${date}.xlsx`;
+
+    // Export file
+    XLSX.writeFile(workbook, filename);
   };
 
   return (
@@ -41,12 +96,20 @@ export function RepasseDisplay({ result, onBack }: RepasseDisplayProps) {
               {result.calculations.length} estabelecimento(s) processado(s)
             </p>
           </div>
-          <button
-            onClick={onBack}
-            className="rounded-lg bg-slate-500 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
-          >
-            ← Voltar
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={exportToExcel}
+              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 transition-colors flex items-center gap-2"
+            >
+              <span>📊</span> Exportar Excel
+            </button>
+            <button
+              onClick={onBack}
+              className="rounded-lg bg-slate-500 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+            >
+              ← Voltar
+            </button>
+          </div>
         </div>
 
         {/* Summary Card */}
@@ -69,7 +132,7 @@ export function RepasseDisplay({ result, onBack }: RepasseDisplayProps) {
               {/* Header - Always visible */}
               <button
                 onClick={() => toggleSection(calc.normalizedName)}
-                className="w-full px-6 py-4 text-left hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors rounded-t-xl"
+                className="w-full px-6 py-4 text-left hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors rounded-xl overflow-hidden"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
@@ -90,13 +153,58 @@ export function RepasseDisplay({ result, onBack }: RepasseDisplayProps) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400 select-text ">
                       {formatCurrency(calc.finalValue)}
                     </div>
                     {calc.hasPercentage && calc.percentage !== null && (
                       <p className="text-sm text-slate-600 dark:text-gray-400 mt-1">
                         Taxa aplicada: {formatPercentage(calc.percentage)}
                       </p>
+                    )}
+                    {calc.pix && (
+                      <div className="flex items-center justify-end gap-2 mt-1">
+                        <p className="text-sm text-slate-600 dark:text-gray-400 select-text font-mono">
+                          PIX: {calc.pix}
+                        </p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyToClipboard(calc.pix!, calc.normalizedName);
+                          }}
+                          className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors"
+                          title="Copiar chave PIX"
+                        >
+                          {copiedPix === calc.normalizedName ? (
+                            <svg
+                              className="w-4 h-4 text-green-600 dark:text-green-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              className="w-4 h-4 text-slate-600 dark:text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                              />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

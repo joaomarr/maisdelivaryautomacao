@@ -19,6 +19,7 @@ export type EstablishmentCalculation = {
   valueAfterTax: number; // After applying percentage (if available)
   finalValue: number; // After applying percentage and subtracting post-tax occurrences
   hasPercentage: boolean;
+  pix: string | null;
   salesData: VendaConcluidaRow[];
 };
 
@@ -53,9 +54,11 @@ export function calculateRepasse(
 
   // Create percentage lookup map
   const percentageMap = new Map<string, number>();
+  const pixMap = new Map<string, string>();
   percentages.forEach((p) => {
     const normalized = normalizeEstablishmentName(p.estabelecimento);
     percentageMap.set(normalized, p.porcentagem);
+    pixMap.set(normalized, p.pix);
   });
 
   // Group occurrences by establishment
@@ -139,6 +142,7 @@ export function calculateRepasse(
       valueAfterTax,
       finalValue,
       hasPercentage,
+      pix: pixMap.get(normalizedName) || null,
       salesData: sales,
     });
   });
