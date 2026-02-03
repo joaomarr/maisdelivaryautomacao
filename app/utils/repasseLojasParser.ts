@@ -196,8 +196,10 @@ export async function parsePercentages(
     const estabelecimentoCol = headers.find((h) =>
       h.toLowerCase().includes("estabelecimento"),
     );
-    const porcentagemCol = headers.find((h) =>
-      h.toLowerCase().includes("porcetagem"),
+    const porcentagemCol = headers.find(
+      (h) =>
+        h.toLowerCase().includes("porcetagem") ||
+        h.toLowerCase().includes("porcentagem"),
     );
     const chavePixCol = headers.find((h) =>
       h.toLowerCase().includes("chave pix"),
