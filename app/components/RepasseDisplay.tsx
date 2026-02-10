@@ -222,7 +222,7 @@ export function RepasseDisplay({ result, onBack }: RepasseDisplayProps) {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-slate-600 dark:text-gray-400">
-                            Valor Base (Produtos + Cupons + Promoções):
+                            Valor Base (Produtos + Cupons):
                           </span>
                           <span className="font-medium text-slate-900 dark:text-white">
                             {formatCurrency(calc.baseValue)}
@@ -265,10 +265,20 @@ export function RepasseDisplay({ result, onBack }: RepasseDisplayProps) {
                         {calc.hasPercentage && calc.percentage !== null && (
                           <div className="flex justify-between text-blue-600 dark:text-blue-400">
                             <span>
-                              Taxa aplicada: {formatPercentage(calc.percentage)}
+                              (-) Taxa aplicada:{" "}
+                              {formatPercentage(calc.percentage)}
                             </span>
                             <span className="font-medium">
                               {formatCurrency(calc.taxAmount)}
+                            </span>
+                          </div>
+                        )}
+
+                        {calc.totalValorPromocaoAdm > 0 && (
+                          <div className="flex justify-between text-green-600 dark:text-green-400">
+                            <span>(+) Promoções Adm (após taxa):</span>
+                            <span className="font-medium">
+                              {formatCurrency(calc.totalValorPromocaoAdm)}
                             </span>
                           </div>
                         )}

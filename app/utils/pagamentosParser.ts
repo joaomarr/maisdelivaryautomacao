@@ -90,10 +90,24 @@ function parseCSV(content: string): CellPrimitive[][] {
 
 function parseMoneyValue(value: string): number {
   if (!value || value === "-") return 0;
-  const cleaned = value
-    .replace(/R\$\s*/g, "")
-    .replace(/\./g, "")
-    .replace(",", ".");
+
+  // Remove currency symbol
+  let cleaned = value.replace(/R\$\s*/g, "").trim();
+
+  // Determine decimal separator: the last occurrence of . or , is the decimal
+  const lastDotIndex = cleaned.lastIndexOf(".");
+  const lastCommaIndex = cleaned.lastIndexOf(",");
+
+  if (lastDotIndex > lastCommaIndex) {
+    // Dot is the decimal separator, remove commas as thousands separators
+    cleaned = cleaned.replace(/,/g, "");
+  } else if (lastCommaIndex > lastDotIndex) {
+    // Comma is the decimal separator, remove dots as thousands separators
+    cleaned = cleaned.replace(/\./g, "");
+    // Replace comma with dot for JavaScript parsing
+    cleaned = cleaned.replace(",", ".");
+  }
+
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) ? 0 : parsed;
 }

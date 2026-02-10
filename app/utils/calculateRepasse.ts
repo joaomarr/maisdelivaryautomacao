@@ -8,7 +8,7 @@ import { normalizeEstablishmentName } from "./repasseLojasParser";
 export type EstablishmentCalculation = {
   estabelecimento: string;
   normalizedName: string;
-  baseValue: number; // Produtos + Valor Cupom Adm + Valor Promocao Adm
+  baseValue: number; // Produtos + Valor Cupom Adm
   occurrencesBeforeTax: OccurrenceRow[];
   occurrencesAfterTax: OccurrenceRow[];
   totalOccurrencesBeforeTax: number;
@@ -17,6 +17,7 @@ export type EstablishmentCalculation = {
   percentage: number | null; // Tax percentage (as decimal)
   taxAmount: number; // Amount to apply as tax
   valueAfterTax: number; // After applying percentage (if available)
+  totalValorPromocaoAdm: number; // Promotion value added after tax
   finalValue: number; // After applying percentage and subtracting post-tax occurrences
   hasPercentage: boolean;
   pix: string | null;
@@ -32,10 +33,11 @@ export type RepasseCalculationResult = {
  * Calculate repasse values for each establishment
  *
  * Formula:
- * 1. Base = Produtos + Valor Cupom Adm + Valor Promocao Adm (sum all sales for establishment)
+ * 1. Base = Produtos + Valor Cupom Adm (sum all sales for establishment)
  * 2. Subtract "Ocorrência de Pedido" occurrences (before tax)
  * 3. Apply percentage/tax
- * 4. Subtract other occurrences (after tax)
+ * 4. Add Valor Promocao Adm (after tax)
+ * 5. Subtract other occurrences (after tax)
  */
 export function calculateRepasse(
   vendas: VendaConcluidaRow[],
@@ -77,9 +79,14 @@ export function calculateRepasse(
   salesByEstablishment.forEach((sales, normalizedName) => {
     const originalName = sales[0].estabelecimento;
 
-    // 1. Calculate base value (sum of all sales)
+    // 1. Calculate base value (sum of all sales, excluding valorPromocaoAdm)
     const baseValue = sales.reduce((sum, sale) => {
-      return sum + sale.produtos + sale.valorCupomAdm + sale.valorPromocaoAdm;
+      return sum + sale.produtos + sale.valorCupomAdm;
+    }, 0);
+
+    // Calculate total valorPromocaoAdm (to be added after tax)
+    const totalValorPromocaoAdm = sales.reduce((sum, sale) => {
+      return sum + sale.valorPromocaoAdm;
     }, 0);
 
     // 2. Get occurrences for this establishment
@@ -125,8 +132,11 @@ export function calculateRepasse(
       ? valueBeforeTax - taxAmount
       : valueBeforeTax;
 
-    // 5. Subtract after-tax occurrences (final value includes percentage effect)
-    const finalValue = valueAfterTax - totalOccurrencesAfterTax;
+    // 4. Add valorPromocaoAdm after tax
+    const valueWithPromocao = valueAfterTax + totalValorPromocaoAdm;
+
+    // 5. Subtract after-tax occurrences (final value includes percentage effect and promocao)
+    const finalValue = valueWithPromocao - totalOccurrencesAfterTax;
 
     calculations.push({
       estabelecimento: originalName,
@@ -140,6 +150,7 @@ export function calculateRepasse(
       percentage,
       taxAmount,
       valueAfterTax,
+      totalValorPromocaoAdm,
       finalValue,
       hasPercentage,
       pix: pixMap.get(normalizedName) || null,
